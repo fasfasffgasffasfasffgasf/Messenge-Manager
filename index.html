@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Messenger</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1d1f20;
+            color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            display: flex;
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            background-color: #282c34;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .users-list {
+            width: 30%; /* Панель пользователей занимает 30% */
+            background-color: #2f343b;
+            overflow-y: auto;
+            border-right: 1px solid #444;
+            padding: 10px;
+        }
+
+       
+
+
+        .user {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+            .user:hover {
+                background-color: #444;
+                box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            }
+
+            .user.red {
+                border-left: 5px solid #ff5c5c;
+            }
+
+            .user.yellow {
+                border-left: 5px solid #ffcc00;
+            }
+
+            .user.green {
+                border-left: 5px solid #4caf50;
+            }
+
+        .star {
+            cursor: pointer;
+            color: #888;
+            transition: color 0.3s ease;
+        }
+
+            .star.active {
+                color: #ffdd00;
+            }
+
+        .chat-window {
+            width: 70%; /* Чат занимает оставшиеся 70% */
+            display: flex;
+            flex-direction: column;
+            background-color: #2f343b;
+        }
+
+        .chat-header {
+            background-color: #3a3f47;
+            padding: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-bottom: 1px solid #444;
+            text-align: center;
+            color: #ddd;
+        }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background-color: #282c34;
+            border-bottom: 1px solid #444;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            font-size: 1em;
+            max-width: 75%;
+            line-height: 1.4;
+        }
+
+            .message.user {
+                text-align: right;
+                color: #4a90e2;
+            }
+
+            .message.other {
+                text-align: left;
+                color: #ddd;
+            }
+
+        .message-input {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            background-color: #3a3f47;
+            border-top: 1px solid #444;
+        }
+
+            .message-input input {
+                width: 100%;
+                padding: 12px;
+                background-color: #333;
+                color: #fff;
+                border: 1px solid #444;
+                border-radius: 5px;
+                outline: none;
+                font-size: 1em;
+            }
+
+                .message-input input:focus {
+                    border-color: #4a90e2;
+                }
+
+            .message-input button {
+                background-color: #4a90e2;
+                color: #fff;
+                padding: 12px 20px;
+                margin-left: 10px;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                transition: background-color 0.3s ease;
+            }
+
+                .message-input button:hover {
+                    background-color: #3578e5;
+                }
+
+        .user-name {
+            font-weight: bold;
+        }
+
+        .star.active {
+            color: gold;
+        }
+
+        /* Scrollbar customization */
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background-color: #444;
+            border-radius: 5px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background-color: #2f343b;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="users-list" id="usersList"></div>
+        <div class="chat-window">
+            <div class="chat-header" id="chatHeader">Select a user</div>
+            <div class="chat-messages" id="chatMessages"></div>
+            <div class="message-input">
+                <input type="text" id="messageInput" placeholder="Type a message...">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://api.jsonbin.io/v3/b/6792b1c5ad19ca34f8f3633e';
+        const API_HEADERS = {
+            'X-Master-Key': '$2a$10$dnS7h3fDFlLodP6sLAxAe.5B00QlrIYub51/Hlsn6zjOoGHKlYZ1C',
+            'Content-Type': 'application/json'
+        };
+
+        let data = [];
+
+        const usersList = document.getElementById('usersList');
+        const chatHeader = document.getElementById('chatHeader');
+        const chatMessages = document.getElementById('chatMessages');
+        const messageInput = document.getElementById('messageInput');
+
+        // Загрузка данных
+        async function fetchData() {
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    headers: API_HEADERS
+                });
+
+                if (!response.ok) throw new Error('Ошибка загрузки данных');
+                const json = await response.json();
+                return json.record;
+            } catch (error) {
+                console.error('Ошибка:', error);
+            }
+        }
+
+        // Сохранение данных с проверкой целостности
+        async function saveData(data) {
+            try {
+                // Проверка структуры данных перед сохранением
+                if (!Array.isArray(data)) {
+                    throw new Error("Неверный формат данных: ожидается массив.");
+                }
+
+                // Проверяем каждый элемент в массиве данных
+                data.forEach(user => {
+                    if (typeof user !== "object" || !user.username || !user.messages || !Array.isArray(user.messages)) {
+                        throw new Error("Неверный формат пользователя: каждый пользователь должен иметь username и массив messages.");
+                    }
+
+                    // Также проверяем, что у каждого сообщения есть необходимые поля
+                    user.messages.forEach(message => {
+                        if (typeof message !== "object" || !message.sender || !message.text || typeof message.saved !== "boolean") {
+                            throw new Error("Неверный формат сообщения.");
+                        }
+                    });
+                });
+
+                // Если структура данных правильная, сохраняем их на сервер
+                const response = await fetch(API_URL, {
+                    method: 'PUT',
+                    headers: API_HEADERS,
+                    body: JSON.stringify({ record: data }, null, 4)
+                });
+
+                if (!response.ok) throw new Error('Ошибка сохранения данных');
+            } catch (error) {
+                console.error('Ошибка сохранения данных:', error);
+            }
+        }
+        // Загрузка пользователей и установка цвета для непрочитанных сообщений
+        async function loadUsers() {
+            data = (await fetchData()).record; // Получаем массив пользователей из "record"
+            usersList.innerHTML = ''; // Очистка контейнера пользователей
+
+            data.forEach((user, index) => {
+                const userDiv = document.createElement('div');
+                userDiv.className = `user ${user.frameColor}`;
+                userDiv.setAttribute("data-userid", user.userid); // Добавляем атрибут для идентификации
+
+                // Определяем, если есть непрочитанные сообщения, то имя будет синим
+                const hasUnreadMessage = user.messages.some(message => !message.isRead);
+                if (hasUnreadMessage) {
+                    userDiv.style.color = "blue"; // Синий цвет для непрочитанных сообщений
+                } else {
+                    userDiv.style.color = "white"; // Белый цвет для прочитанных сообщений
+                }
+
+                // Звезда
+                const star = document.createElement('span');
+                star.className = 'star';
+                star.textContent = '★';
+                star.classList.toggle('active', user.starred);
+                star.addEventListener('click', async (e) => {
+                    e.stopPropagation(); // Прекращаем распространение события на родительский элемент
+                    star.classList.toggle('active'); // Переключаем класс звезды
+                    user.starred = !user.starred; // Обновляем состояние звезды
+                    await saveData(data); // Сохраняем данные на сервере
+                });
+
+                const userName = document.createElement('span');
+                userName.textContent = user.username;
+
+                // Добавление звезды и имени пользователя
+                userDiv.appendChild(userName);
+                userDiv.appendChild(star);
+
+                // Обработчик клика по пользователю
+                userDiv.addEventListener('click', () => openChat(index));
+
+                // Добавляем пользователя в список
+                usersList.appendChild(userDiv);
+            });
+        }
+
+        // Загрузка сообщений с проверкой типа отправителя
+        function openChat(index) {
+            const user = data[index];
+            chatHeader.textContent = user.username; // Устанавливаем заголовок чата
+            chatMessages.innerHTML = ''; // Очищаем окно сообщений
+
+            // Отображаем все сообщения пользователя
+            user.messages.forEach(message => {
+                const messageDiv = document.createElement('div');
+
+                // Проверяем, если сообщение от "ВЫ", то отображаем как админ
+                messageDiv.className = `message ${message.senderType === 'admin' ? 'user' : 'other'}`;
+
+                // Если сообщение не было сохранено, меняем его статус на true
+                if (!message.saved) {
+                    message.saved = true;
+                    saveData(data);  // Сохраняем изменения на сервере
+                }
+
+                // Если сообщение не прочитано, меняем его статус на true при открытии чата
+                if (!message.isRead) {
+                    message.isRead = true;
+                    saveData(data);  // Сохраняем изменения на сервере
+                }
+
+                // Все сообщения от администратора будем отображать синим
+                messageDiv.style.color = message.senderType === 'admin' ? '#007bff' : '#ffffff';
+                messageDiv.textContent = `${message.sender}: ${message.text}`;
+                chatMessages.appendChild(messageDiv);
+            });
+
+            // После открытия чата изменяем цвет имени пользователя в боковой панели на белый
+            const userDiv = usersList.querySelector(`div[data-userid="${user.userid}"]`);
+            if (userDiv) {
+                userDiv.style.color = "#ffffff"; // Меняем цвет на белый
+            }
+        }
+
+        // Отправка сообщения с проверкой структуры
+        async function sendMessage() {
+            const messageText = messageInput.value;
+            if (!messageText) return;
+
+            const activeUser = data.find(user => user.username === chatHeader.textContent);
+            if (activeUser) {
+                const newMessage = {
+                    sender: "Вы",
+                    text: messageText,
+                    saved: false,
+                    isRead: false,  // При отправке новое сообщение считается непрочитанным
+                    senderType: "admin"  // Указываем, что это сообщение от администратора
+                };
+
+                // Проверка структуры перед добавлением нового сообщения
+                if (Array.isArray(activeUser.messages)) {
+                    activeUser.messages.push(newMessage);
+                } else {
+                    console.error("Ошибка: сообщения пользователя не являются массивом.");
+                    return;
+                }
+
+                openChat(data.indexOf(activeUser)); // Обновляем чат с новыми данными
+                messageInput.value = ''; // Очищаем поле ввода
+
+                try {
+                    await saveData(data); // Сохраняем изменения
+                } catch (error) {
+                    console.error('Ошибка сохранения данных:', error);
+                }
+            }
+        }
+
+
+        // Автоматическая загрузка
+        setInterval(async () => {
+            const updatedData = await fetchData();
+            if (JSON.stringify(updatedData) !== JSON.stringify(data)) {
+                data = updatedData;
+                loadUsers();
+            }
+        }, 5000);
+
+        // Начальная загрузка пользователей
+        loadUsers();
+    </script>
+
+
+</body>
+</html>
